@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FastChat — Молниеносный мессенджер</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: #0b111e;
+      color: #ffffff;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* Header Navigation */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 8%;
+      background: rgba(11, 17, 30, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .header-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      background-color: rgba(21, 32, 51, 0.6);
+      padding: 8px 16px;
+      border-radius: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 20px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0088cc, #0055a5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 12px rgba(0, 136, 204, 0.5);
+    }
+
+    .logo-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: #ffcc00;
+    }
+
+    nav {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+
+    nav a {
+      color: #8d9bb0;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    nav a:hover {
+      color: #38bdf8;
+    }
+
+    .btn-web {
+      background: linear-gradient(135deg, #2b5278, #1e3a5f);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 10px 22px;
+      border-radius: 20px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-web:hover {
+      background: linear-gradient(135deg, #356391, #254977);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+    }
+
+    /* Hero Section */
+    .hero {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+      min-height: 85vh;
+    }
+
+    .hero-content {
+      flex: 1;
+      max-width: 580px;
+    }
+
+    .hero-title {
+      font-size: 58px;
+      line-height: 1.1;
+      font-weight: 800;
+      margin-bottom: 24px;
+      letter-spacing: -1px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-description {
+      font-size: 19px;
+      color: #8d9bb0;
+      margin-bottom: 40px;
+      max-width: 480px;
+    }
+
+    /* Direct Download Button */
+    .btn-main-download {
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      color: #ffffff;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 20px;
+      font-size: 17px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      box-shadow: 0 10px 25px rgba(56, 189, 248, 0.3);
+      transition: all 0.25s ease;
+    }
+
+    .btn-main-download:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(56, 189, 248, 0.45);
+    }
+
+    /* Phone Mockup */
+    .hero-mockup {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      position: relative;
+    }
+
+    .phone-container {
+      width: 320px;
+      height: 640px;
+      background-color: #17212b;
+      border-radius: 48px;
+      border: 10px solid #202d3d;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 136, 204, 0.2);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .phone-notch {
+      width: 120px;
+      height: 24px;
+      background-color: #202d3d;
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      z-index: 10;
+    }
+
+    .app-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: #0e1621;
+      padding-top: 30px;
+    }
+
+    .app-header {
+      padding: 12px 16px;
+      background-color: #17212b;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #10171d;
+    }
+
+    .app-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3a82f6, #1d4ed8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .app-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .app-status {
+      font-size: 11px;
+      color: #4ba3e3;
+    }
+
+    .app-messages {
+      flex: 1;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .app-msg {
+      max-width: 80%;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .app-msg.sent {
+      align-self: flex-end;
+      background-color: #2b5278;
+      border-bottom-right-radius: 4px;
+    }
+
+    .app-msg.received {
+      align-self: flex-start;
+      background-color: #182533;
+      border-bottom-left-radius: 4px;
+    }
+
+    .video-note {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid #38bdf8;
+      align-self: flex-start;
+      overflow: hidden;
+      background: radial-gradient(circle, #254977, #0e1621);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+
+    .video-note svg {
+      width: 40px;
+      height: 40px;
+      fill: #ffcc00;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        flex-direction: column;
+        text-align: center;
+        padding-top: 40px;
+      }
+
+      .hero-content {
+        max-width: 100%;
+      }
+
+      .hero-description {
+        margin: 0 auto 30px;
+      }
+
+      nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-pill">
+      <a href="#" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M11 21L12 14H7L13 3L12 10H17L11 21Z" />
+          </svg>
+        </div>
+        FastChat
+      </a>
+
+      <nav>
+        <a href="#features">Для бизнеса</a>
+        <a href="#security">Безопасность</a>
+      </nav>
+
+      <a href="client.html" class="btn-web">Открыть веб-версию</a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">
+        Молниеносный <br>
+        <span class="gradient-text">мессенджер</span> <br>
+        для жизни
+      </h1>
+      <p class="hero-description">
+        Быстрое и лёгкое приложение для общения, обмена файлами и решения повседневных задач без границ.
+      </p>
+
+      <a href="FastChat.exe" download class="btn-main-download">
+        <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        </svg>
+        Скачать приложение
+      </a>
+    </div>
+
+    <!-- Phone Mockup -->
+    <div class="hero-mockup">
+      <div class="phone-container">
+        <div class="phone-notch"></div>
+        <div class="app-screen">
+          <div class="app-header">
+            <div class="app-avatar">FC</div>
+            <div>
+              <div class="app-title">Общий чат</div>
+              <div class="app-status">в сети</div>
+            </div>
+          </div>
+          <div class="app-messages">
+            <div class="video-note">
+              <svg viewBox="0 0 24 24">
+                <path d="M11 21L12 14H7L13 3L12 10H17L11 21Z" />
+              </svg>
+            </div>
+            <div class="app-msg received">
+              Привет! Скачивай FastChat прямо сейчас ⚡
+            </div>
+            <div class="app-msg sent">
+              Уже жму кнопку! 🔥
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
