@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FastChat</title>
+<style>
+  :root {
+    --tg-bg: #0e1621;
+    --tg-panel: #17212b;
+    --tg-header: #17212b;
+    --tg-chat-bg: #0e1621;
+    --tg-chat-bg-img:
+      radial-gradient(circle at 20% 15%, rgba(78,164,245,0.05), transparent 40%),
+      radial-gradient(circle at 80% 85%, rgba(78,164,245,0.04), transparent 45%);
+    --tg-border: #101921;
+    --tg-accent: #4ea4f5;
+    --tg-bubble-out: #2b5278;
+    --tg-bubble-in: #182533;
+    --tg-text: #ffffff;
+    --tg-text-dim: #6d7f8f;
+    --tg-online: #4fae4e;
+    --tg-hover: #1c2733;
+    --tg-selected: #2b5278;
+    --tg-danger: #ff6b6b;
+    --tg-menu-bg: #22303f;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0f16;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--tg-text);
+    overflow: hidden;
+    transition: background 0.2s ease;
+  }
+
+  .shell {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    position: relative;
+    background: var(--tg-chat-bg);
+  }
+
+  /* ===================== САЙДБАР ===================== */
+  .sidebar {
+    width: 340px;
+    min-width: 280px;
+    max-width: 380px;
+    background: var(--tg-panel);
+    border-right: 1px solid var(--tg-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    height: 56px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--tg-border);
+  }
+
+  .sidebar-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4ea4f5, #2b5278);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .search-wrap {
+    flex: 1;
+    min-width: 0;
+    background: var(--tg-bubble-in);
+    border: 1px solid var(--tg-border);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    height: 36px;
+  }
+  .search-wrap svg { color: var(--tg-text-dim); flex-shrink: 0; }
+  .search-wrap input {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--tg-text); font-size: 13.5px;
+  }
+  .search-wrap input::placeholder { color: var(--tg-text-dim); }
+
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: transparent; color: var(--tg-text-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: background 0.1s ease, color 0.1s ease;
+  }
+  .icon-btn:hover { background: var(--tg-hover); color: var(--tg-text); }
+
+  .sidebar-scroll { flex: 1; overflow-y: auto; }
+  .sidebar-scroll::-webkit-scrollbar { width: 5px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: #223140; border-radius: 3px; }
+
+  .section-label {
+    padding: 14px 16px 6px; font-size: 12px; font-weight: 600;
+    color: var(--tg-text-dim); text-transform: uppercase; letter-spacing: 0.4px;
+  }
+
+  .chat-item {
+    display: flex; align-items: center; gap: 12px; padding: 9px 12px;
+    margin: 1px 6px; border-radius: 8px; cursor: pointer; transition: background 0.1s ease;
+  }
+  .chat-item:hover { background: var(--tg-hover); }
+  .chat-item.selected { background: var(--tg-selected); }
+
+  .item-avatar {
+    width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 600; font-size: 16px; color: white;
+    flex-shrink: 0; position: relative;
+  }
+  .item-avatar.group { background: linear-gradient(135deg, #4ea4f5, #2b5278); }
+
+  .presence-dot {
+    position: absolute; bottom: -1px; right: -1px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--tg-online); border: 2px solid var(--tg-panel);
+  }
+  .presence-dot.off { background: #4b5768; }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+  .item-name {
+    font-size: 14.5px; font-weight: 500; color: var(--tg-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .item-time { font-size: 11.5px; color: var(--tg-text-dim); flex-shrink: 0; }
+  .item-preview {
+    font-size: 13px; color: var(--tg-text-dim); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+  }
+
+  .empty-contacts { padding: 10px 16px; font-size: 12.5px; color: var(--tg-text-dim); }
+
+  /* ===================== ЗВОНКИ ===================== */
+  .contact-actions {
+    display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s ease; flex-shrink: 0;
+  }
+  .chat-item:hover .contact-actions { opacity: 1; }
+  .contact-call-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--tg-hover);
+    color: var(--tg-accent); display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .contact-call-btn:hover { background: var(--tg-selected); }
+
+  .call-overlay {
+    position: fixed; inset: 0; background: rgba(5,8,12,0.88); display: none;
+    align-items: center; justify-content: center; z-index: 200;
+  }
+  .call-overlay.open { display: flex; }
+  .call-panel {
+    width: 360px; background: var(--tg-panel); border-radius: 20px; padding: 32px 28px 26px;
+    text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.6); position: relative;
+  }
+  .call-avatar {
+    width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 16px; display: flex;
+    align-items: center; justify-content: center; font-size: 34px; font-weight: 700; color: white;
+    position: relative;
+  }
+  .call-avatar.ringing::before {
+    content: ''; position: absolute; inset: -10px; border-radius: 50%; border: 2px solid var(--tg-accent);
+    animation: ring-pulse 1.4s ease-out infinite;
+  }
+  @keyframes ring-pulse {
+    0% { transform: scale(0.9); opacity: 0.9; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+  .call-name { font-size: 19px; font-weight: 600; margin-bottom: 4px; }
+  .call-status { font-size: 13.5px; color: var(--tg-text-dim); margin-bottom: 24px; min-height: 18px; }
+
+  .call-video-area {
+    position: relative; width: 100%; height: 220px; background: #000; border-radius: 14px;
+    overflow: hidden; margin-bottom: 20px; display: none;
+  }
+  .call-video-area.active { display: block; }
+  .call-video-area video#remoteVideo { width: 100%; height: 100%; object-fit: cover; }
+  .call-video-area video#localVideo {
+    position: absolute; bottom: 8px; right: 8px; width: 84px; height: 60px; object-fit: cover;
+    border-radius: 8px; border: 2px solid rgba(255,255,255,0.5); transform: scaleX(-1);
+  }
+
+  .call-controls { display: flex; justify-content: center; gap: 14px; }
+  .call-ctrl-btn {
+    width: 54px; height: 54px; border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: white;
+    background: rgba(255,255,255,0.12); transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .call-ctrl-btn:active { transform: scale(0.92); }
+  .call-ctrl-btn.active-off { background: rgba(255,255,255,0.35); }
+  .call-ctrl-btn.accept { background: var(--tg-online); }
+  .call-ctrl-btn.decline, .call-ctrl-btn.hangup { background: var(--tg-danger); }
+
+  .call-incoming-row { display: flex; justify-content: center; gap: 28px; margin-top: 4px; }
+
+  /* ===================== ОБЛАСТЬ ЧАТА ===================== */
+  .chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .header {
+    height: 56px; padding: 0 16px; background: var(--tg-header);
+    border-bottom: 1px solid var(--tg-border); display: flex; align-items: center;
+    gap: 12px; flex-shrink: 0;
+  }
+
+  .header-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #4ea4f5, #2b5278);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 16px; flex-shrink: 0;
+  }
+
+  .header-info { flex: 1; min-width: 0; }
+  .header-title {
+    font-weight: 500; font-size: 15.5px; color: var(--tg-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .header-status { font-size: 13px; color: var(--tg-text-dim); margin-top: 1px; }
+  .header-status.online { color: var(--tg-accent); }
+  .header-status.typing { color: var(--tg-online); }
+
+  .messages {
+    flex: 1; overflow-y: auto; padding: 10px 10% 14px; display: flex;
+    flex-direction: column; background-color: var(--tg-chat-bg);
+    background-image: var(--tg-chat-bg-img);
+  }
+  .messages::-webkit-scrollbar { width: 5px; }
+  .messages::-webkit-scrollbar-thumb { background: #223140; border-radius: 3px; }
+
+  .system-line {
+    align-self: center; background: rgba(120,130,145,0.15); color: var(--tg-text-dim);
+    font-size: 12px; padding: 4px 12px; border-radius: 12px; margin: 10px 0; text-align: center;
+  }
+
+  .row {
+    display: flex; margin-top: 2px; animation: pop 0.18s ease;
+    scroll-margin-top: 20px; position: relative;
+  }
+  .row.grouped { margin-top: 1px; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .row.out { justify-content: flex-end; }
+  .row.in { justify-content: flex-start; }
+
+  .bubble-wrap { display: flex; align-items: flex-start; gap: 4px; max-width: 78%; }
+  .row.out .bubble-wrap { flex-direction: row-reverse; }
+
+  .bubble {
+    padding: 6px 9px 7px 10px; border-radius: 12px; font-size: 14.5px; line-height: 1.35;
+    position: relative; word-wrap: break-word; transition: box-shadow 0.3s ease; min-width: 46px;
+  }
+  .bubble.flash { box-shadow: 0 0 0 2px var(--tg-accent); }
+  .bubble.deleted .msg-text { font-style: italic; opacity: 0.6; }
+
+  .row.in .bubble { background: var(--tg-bubble-in); border-top-left-radius: 4px; color: var(--tg-text); }
+  .row.out .bubble { background: var(--tg-bubble-out); border-top-right-radius: 4px; color: var(--tg-text); }
+
+  .bubble .sender-name { font-size: 13px; font-weight: 600; color: var(--tg-accent); margin-bottom: 2px; display: block; }
+  .bubble .msg-text { white-space: pre-wrap; }
+  .bubble .edited-tag { font-size: 10.5px; opacity: 0.6; margin-left: 4px; }
+  .bubble .meta {
+    display: inline-flex; align-items: center; gap: 3px; float: right;
+    margin: 4px 0 -3px 8px; font-size: 11px; color: rgba(255,255,255,0.55);
+  }
+  .row.in .bubble .meta { color: var(--tg-text-dim); }
+  .check { width: 15px; height: 10px; display: inline-block; }
+
+  .bubble-file {
+    display: flex; align-items: center; gap: 10px; padding: 4px 2px; max-width: 220px;
+  }
+  .bubble-file .file-icon {
+    width: 38px; height: 38px; border-radius: 8px; background: rgba(78,164,245,0.18);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--tg-accent);
+  }
+  .bubble-file .file-meta { min-width: 0; }
+  .bubble-file .file-name { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bubble-file .file-size { font-size: 11.5px; color: var(--tg-text-dim); }
+  .bubble-file a { color: inherit; text-decoration: none; }
+
+  .bubble-image { display: block; max-width: 260px; max-height: 260px; border-radius: 10px; cursor: zoom-in; }
+
+  .reactions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .reaction-pill {
+    display: inline-flex; align-items: center; gap: 3px; background: rgba(120,130,145,0.18);
+    border: 1px solid transparent; border-radius: 11px; padding: 1px 7px; font-size: 12.5px;
+    cursor: pointer; user-select: none; transition: background 0.1s ease;
+  }
+  .reaction-pill:hover { background: rgba(120,130,145,0.3); }
+  .reaction-pill.mine { border-color: var(--tg-accent); background: rgba(78,164,245,0.18); }
+
+  .msg-actions {
+    display: flex; flex-direction: column; gap: 2px; opacity: 0; transition: opacity 0.12s ease;
+    flex-shrink: 0; padding-top: 2px;
+  }
+  .row:hover .msg-actions { opacity: 1; }
+  .msg-action-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--tg-hover);
+    color: var(--tg-text-dim); display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .msg-action-btn:hover { background: var(--tg-selected); color: var(--tg-text); }
+
+  .mini-picker {
+    position: fixed; background: var(--tg-menu-bg);
+    border: 1px solid var(--tg-border); border-radius: 12px; padding: 6px 8px; display: flex; gap: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35); z-index: 500;
+  }
+  .mini-picker span { font-size: 19px; cursor: pointer; padding: 2px; border-radius: 6px; transition: transform 0.1s ease; }
+  .mini-picker span:hover { transform: scale(1.25); }
+
+  .msg-menu {
+    position: fixed; background: var(--tg-menu-bg);
+    border: 1px solid var(--tg-border); border-radius: 10px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35); z-index: 500; min-width: 140px;
+  }
+  .msg-menu button {
+    display: block; width: 100%; text-align: left; padding: 9px 14px; background: none; border: none;
+    color: var(--tg-text); font-size: 13.5px; cursor: pointer;
+  }
+  .msg-menu button:hover { background: var(--tg-hover); }
+  .msg-menu button.danger { color: var(--tg-danger); }
+
+  .edit-input-row { display: flex; gap: 6px; align-items: center; }
+  .edit-input-row input {
+    background: rgba(255,255,255,0.08); border: 1px solid var(--tg-accent); border-radius: 8px;
+    padding: 5px 8px; color: inherit; font-size: 14.5px; outline: none; min-width: 160px;
+  }
+  .edit-input-row button {
+    background: var(--tg-accent); border: none; border-radius: 6px; color: white;
+    font-size: 12px; padding: 5px 8px; cursor: pointer;
+  }
+
+  /* ===================== ПОЛЕ ВВОДА ===================== */
+  .composer {
+    padding: 8px 10px; background: var(--tg-header); border-top: 1px solid var(--tg-border);
+    display: flex; align-items: flex-end; gap: 6px; flex-shrink: 0; position: relative;
+  }
+  .composer-icon {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    color: var(--tg-text-dim); flex-shrink: 0; cursor: pointer; border-radius: 50%; border: none; background: none;
+    transition: background 0.1s ease, color 0.1s ease;
+  }
+  .composer-icon:hover { background: var(--tg-hover); color: var(--tg-text); }
+
+  .composer-input-wrap {
+    flex: 1; min-width: 0; background: var(--tg-bubble-in); border: 1px solid var(--tg-border); border-radius: 20px;
+    display: flex; align-items: center; padding: 0 6px 0 16px; min-height: 40px;
+  }
+  .composer input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--tg-text); font-size: 14.5px; padding: 10px 0; }
+  .composer input::placeholder { color: var(--tg-text-dim); }
+
+  .send-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--tg-accent);
+    color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    flex-shrink: 0; transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  .send-btn:active { transform: scale(0.9); }
+  .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .emoji-panel {
+    position: absolute; bottom: 60px; left: 10px; width: 320px; max-height: 260px; overflow-y: auto;
+    background: var(--tg-menu-bg); border: 1px solid var(--tg-border); border-radius: 14px; padding: 10px;
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 30;
+  }
+  .emoji-panel span {
+    font-size: 21px; text-align: center; cursor: pointer; border-radius: 8px; padding: 4px 0;
+    transition: background 0.1s ease;
+  }
+  .emoji-panel span:hover { background: var(--tg-hover); }
+
+  /* ===================== ЭКРАН ВХОДА ===================== */
+  .login {
+    position: absolute; inset: 0; background: linear-gradient(180deg, #17212b, #0e1621);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 36px; text-align: center; z-index: 50;
+  }
+  .login-logo {
+    width: 76px; height: 76px; border-radius: 50%; background: linear-gradient(135deg, #4ea4f5, #2b5278);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 30px;
+    box-shadow: 0 12px 30px rgba(78,164,245,0.35); margin-bottom: 8px;
+  }
+  .login h1 { margin: 0; font-size: 23px; font-weight: 600; color: var(--tg-text); }
+  .login p { color: var(--tg-text-dim); font-size: 13.5px; margin: 0 0 16px; max-width: 280px; }
+  .login-field { width: 260px; text-align: left; }
+  .login-field label { display: block; font-size: 11.5px; color: var(--tg-text-dim); margin-bottom: 5px; font-weight: 600; }
+  .login input {
+    width: 260px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--tg-border);
+    background: var(--tg-bubble-in); color: var(--tg-text); font-size: 14.5px; outline: none;
+  }
+  .login input:focus { border-color: var(--tg-accent); }
+  .login button {
+    margin-top: 8px; padding: 12px 30px; border: none; border-radius: 10px; background: var(--tg-accent);
+    color: white; font-weight: 600; cursor: pointer; font-size: 14.5px;
+  }
+  .login button:active { transform: scale(0.97); }
+  .login-error { color: var(--tg-danger); font-size: 12.5px; min-height: 16px; }
+
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none;
+    align-items: center; justify-content: center; z-index: 100; cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 90%; max-height: 90%; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<div class="shell" id="shell">
+
+  <div class="login" id="login">
+    <div class="login-logo">⚡</div>
+    <h1>FastChat</h1>
+    <p>Демо-мессенджер в стиле Telegram. Укажи сервер и имя, чтобы войти.</p>
+
+    <div class="login-field">
+      <label for="serverInput">Адрес сервера</label>
+      <input id="serverInput" placeholder="ws://localhost:9001" value="ws://localhost:9001">
+    </div>
+    <div class="login-field">
+      <label for="nameInput">Ваше имя</label>
+      <input id="nameInput" placeholder="Например, Аня" maxlength="20">
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+    <button id="connectBtn">Войти в FastChat</button>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">⚡</div>
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+        <input id="contactSearch" placeholder="Поиск">
+      </div>
+      <button class="icon-btn" id="soundToggleBtn" title="Звук уведомлений">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="themeToggleBtn" title="Тема оформления">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="sidebar-scroll">
+      <div class="section-label">Чаты</div>
+      <div class="chat-item selected" id="groupChatItem">
+        <div class="item-avatar group">FC</div>
+        <div class="item-body">
+          <div class="item-top">
+            <div class="item-name">Общий чат</div>
+            <div class="item-time" id="groupChatTime">—</div>
+          </div>
+          <div class="item-preview" id="groupChatPreview">Пока нет сообщений</div>
+        </div>
+      </div>
+
+      <div class="section-label">Контакты</div>
+      <div id="contactsList">
+        <div class="empty-contacts" id="emptyContacts">Пока никого нет — жди, когда кто-то подключится</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-area">
+    <div class="header">
+      <div class="header-avatar" id="headerAvatar">FC</div>
+      <div class="header-info">
+        <div class="header-title" id="headerTitle">Общий чат</div>
+        <div class="header-status" id="headerStatus">не подключено</div>
+      </div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="composer">
+      <input type="file" id="fileInput" style="display:none">
+      <button class="composer-icon" id="attachBtn" title="Прикрепить файл">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      <button class="composer-icon" id="emojiBtn" title="Эмодзи">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+        </svg>
+      </button>
+      <div class="composer-input-wrap">
+        <input id="msgInput" placeholder="Сообщение" disabled>
+      </div>
+      <button class="send-btn" id="sendBtn" disabled title="Отправить">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="lightbox" id="lightbox"><img id="lightboxImg" src="" alt=""></div>
+
+<div class="call-overlay" id="callOverlay">
+  <div class="call-panel">
+    <div class="call-avatar" id="callAvatar">?</div>
+    <div class="call-name" id="callName">—</div>
+    <div class="call-status" id="callStatus">—</div>
+
+    <div class="call-video-area" id="callVideoArea">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+
+    <div class="call-incoming-row" id="callIncomingRow" style="display:none;">
+      <button class="call-ctrl-btn decline" id="callDeclineBtn" title="Отклонить">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15.46l-5.27-.61a2 2 0 00-1.72.6l-2 2a15 15 0 01-6.46-6.46l2-2a2 2 0 00.6-1.71L7.54 3H3.5a1 1 0 00-1 1.11A19 19 0 0019.89 21.5a1 1 0 001.11-1v-4.04z" transform="rotate(135 12 12)"/>
+        </svg>
+      </button>
+      <button class="call-ctrl-btn accept" id="callAcceptBtn" title="Принять">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="call-controls" id="callActiveControls" style="display:none;">
+      <button class="call-ctrl-btn" id="callMuteBtn" title="Микрофон">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
+        </svg>
+      </button>
+      <button class="call-ctrl-btn" id="callCamBtn" title="Камера" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+        </svg>
+      </button>
+      <button class="call-ctrl-btn hangup" id="callHangupBtn" title="Завершить">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15.46l-5.27-.61a2 2 0 00-1.72.6l-2 2a15 15 0 01-6.46-6.46l2-2a2 2 0 00.6-1.71L7.54 3H3.5a1 1 0 00-1 1.11A19 19 0 0019.89 21.5a1 1 0 001.11-1v-4.04z" transform="rotate(135 12 12)"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+<audio id="remoteAudio" autoplay></audio>
+
+<script>
+  let ws = null;
+  let myName = "";
+  const lastSenderByScope = new Map();
+  let currentScope = 'group';
+  let onlineCount = 0;
+  let soundOn = true;
+  let unreadCount = 0;
+  const baseTitle = "FastChat";
+  const dmUnread = new Map();
+
+  const contacts = new Map();
+  const messageRegistry = new Map();
+  const typingTimers = new Map();
+  let dmTypingTimer = null;
+
+  const messagesEl = document.getElementById('messages');
+  const msgInput = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const loginEl = document.getElementById('login');
+  const loginError = document.getElementById('loginError');
+  const headerStatus = document.getElementById('headerStatus');
+  const headerAvatar = document.getElementById('headerAvatar');
+  const headerTitle = document.getElementById('headerTitle');
+  const groupChatItem = document.getElementById('groupChatItem');
+  const contactsListEl = document.getElementById('contactsList');
+  const emptyContactsEl = document.getElementById('emptyContacts');
+  const groupChatPreview = document.getElementById('groupChatPreview');
+  const groupChatTime = document.getElementById('groupChatTime');
+  const contactSearch = document.getElementById('contactSearch');
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const soundToggleBtn = document.getElementById('soundToggleBtn');
+  const emojiBtn = document.getElementById('emojiBtn');
+  const attachBtn = document.getElementById('attachBtn');
+  const fileInput = document.getElementById('fileInput');
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+
+  const AVATAR_COLORS = ['#e17076', '#faa774', '#a695e7', '#7bc862', '#6ec9cb', '#65aadd', '#ee7aae', '#f2c94c'];
+  function colorForName(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  }
+  function initialsForName(name) { return name.trim().slice(0, 2).toUpperCase(); }
+  function timeNow() {
+    const d = new Date();
+    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+  }
+  function genId() { return Date.now() + '-' + Math.random().toString(36).slice(2, 9); }
+  function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  let audioCtx = null;
+  function playPing() {
+    if (!soundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, audioCtx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.12);
+      g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 0.2);
+    } catch (e) {}
+  }
+
+  soundToggleBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundToggleBtn.style.opacity = soundOn ? '1' : '0.4';
+  });
+
+  themeToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+  });
+
+  function bumpUnread() {
+    if (!document.hidden) return;
+    unreadCount++;
+    document.title = `(${unreadCount}) ${baseTitle}`;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { unreadCount = 0; document.title = baseTitle; }
+  });
+
+  function renderUnreadBadge(name) {
+    const c = contacts.get(name);
+    if (!c) return;
+    const badge = c.el.querySelector('.unread-badge');
+    if (!badge) return;
+    const n = dmUnread.get(name) || 0;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.style.display = n > 0 ? 'flex' : 'none';
+  }
+
+  function bumpDmUnread(name) {
+    dmUnread.set(name, (dmUnread.get(name) || 0) + 1);
+    renderUnreadBadge(name);
+  }
+
+  function refreshHeaderStatusForScope() {
+    headerStatus.classList.remove('typing');
+    if (currentScope === 'group') { updateOnlineLabel(); return; }
+    const name = currentScope.slice(3);
+    const c = contacts.get(name);
+    headerStatus.classList.add('online');
+    headerStatus.textContent = c && c.online ? 'в сети' : 'не в сети';
+  }
+
+  function switchScope(newScope) {
+    currentScope = newScope;
+    Array.from(messagesEl.children).forEach(el => {
+      el.style.display = (el.dataset.scope === newScope) ? '' : 'none';
+    });
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    groupChatItem.classList.toggle('selected', newScope === 'group');
+    contacts.forEach((c, name) => { c.el.classList.toggle('selected', newScope === ('dm:' + name)); });
+    if (newScope === 'group') {
+      headerAvatar.textContent = 'FC';
+      headerAvatar.style.background = '';
+      headerTitle.textContent = 'Общий чат';
+    } else {
+      const name = newScope.slice(3);
+      headerAvatar.textContent = initialsForName(name);
+      headerAvatar.style.background = colorForName(name);
+      headerTitle.textContent = name;
+      dmUnread.delete(name);
+      renderUnreadBadge(name);
+    }
+    refreshHeaderStatusForScope();
+    msgInput.focus();
+  }
+
+  function openDm(name) { if (contacts.has(name)) switchScope('dm:' + name); }
+  groupChatItem.addEventListener('click', () => switchScope('group'));
+
+  function upsertContact(name, online) {
+    if (name === myName) return;
+    let c = contacts.get(name);
+    if (!c) {
+      const el = document.createElement('div');
+      el.className = 'chat-item';
+      el.innerHTML = `
+        <div class="item-avatar" style="background:${colorForName(name)}">
+          ${escapeHtml(initialsForName(name))}
+          <span class="presence-dot"></span>
+        </div>
+        <div class="item-body">
+          <div class="item-top">
+            <div class="item-name">${escapeHtml(name)}</div>
+            <div class="item-time"></div>
+          </div>
+          <div class="item-preview">в сети</div>
+        </div>
+        <div class="contact-actions">
+          <button class="contact-call-btn" title="Аудиозвонок" data-call="audio">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+            </svg>
+          </button>
+          <button class="contact-call-btn" title="Видеозвонок" data-call="video">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+              <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+            </svg>
+          </button>
+        </div>`;
+      el.addEventListener('click', () => openDm(name));
+      el.querySelector('[data-call="audio"]').addEventListener('click', (e) => { e.stopPropagation(); startCall(name, false); });
+      el.querySelector('[data-call="video"]').addEventListener('click', (e) => { e.stopPropagation(); startCall(name, true); });
+      contactsListEl.appendChild(el);
+      c = { online: true, el, lastMsgEl: null };
+      contacts.set(name, c);
+      emptyContactsEl.style.display = 'none';
+    }
+    c.online = online;
+    c.el.querySelector('.presence-dot').classList.toggle('off', !online);
+    const preview = c.el.querySelector('.item-preview');
+    if (preview.dataset.lastMsg === undefined) preview.textContent = online ? 'в сети' : 'не в сети';
+  }
+
+  function jumpToRow(row) {
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const bubble = row.querySelector('.bubble');
+    if (bubble) { bubble.classList.add('flash'); setTimeout(() => bubble.classList.remove('flash'), 700); }
+  }
+  function jumpToLastMessageFrom(name) {
+    const c = contacts.get(name);
+    if (c && c.lastMsgEl) jumpToRow(c.lastMsgEl);
+  }
+
+  function updateContactPreview(name, text) {
+    const c = contacts.get(name);
+    if (!c) return;
+    const preview = c.el.querySelector('.item-preview');
+    preview.dataset.lastMsg = '1';
+    preview.textContent = text;
+    c.el.querySelector('.item-time').textContent = timeNow();
+    contactsListEl.prepend(c.el);
+  }
+
+  function showTyping(name) {
+    clearTimeout(typingTimers.get(name));
+    typingTimers.set(name, setTimeout(() => { typingTimers.delete(name); renderTypingStatus(); }, 3000));
+    renderTypingStatus();
+  }
+  function renderTypingStatus() {
+    const names = Array.from(typingTimers.keys());
+    if (names.length === 0) { headerStatus.classList.remove('typing'); updateOnlineLabel(); return; }
+    headerStatus.classList.add('typing');
+    headerStatus.textContent = names.length === 1 ? `${names[0]} печатает…` : `${names.join(', ')} печатают…`;
+  }
+
+  function updateOnlineLabel() {
+    if (currentScope !== 'group') return;
+    if (headerStatus.classList.contains('typing')) return;
+    headerStatus.classList.add('online');
+    headerStatus.textContent = onlineCount <= 1 ? 'в сети' : onlineCount + ' участников онлайн';
+  }
+
+  function addSystemLine(text, scope) {
+    scope = scope || 'group';
+    const el = document.createElement('div');
+    el.className = 'system-line';
+    el.textContent = text;
+    el.dataset.scope = scope;
+    if (scope !== currentScope) el.style.display = 'none';
+    messagesEl.appendChild(el);
+    lastSenderByScope.delete(scope);
+    if (scope === currentScope) messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function checkSvg() {
+    return '<svg class="check" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.4">' +
+           '<path d="M1 5.5L4.5 9 11 1.5"/><path d="M5.5 5.5L9 9 15.5 1.5"/></svg>';
+  }
+
+  const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+  function renderReactions(entry) {
+    let row = entry.reactionsAnchor.querySelector('.reactions-row');
+    if (!row) { row = document.createElement('div'); row.className = 'reactions-row'; entry.reactionsAnchor.appendChild(row); }
+    row.innerHTML = '';
+    for (const [emoji, users] of entry.reactions) {
+      if (users.size === 0) continue;
+      const pill = document.createElement('div');
+      pill.className = 'reaction-pill' + (users.has(myName) ? ' mine' : '');
+      pill.textContent = emoji + ' ' + users.size;
+      pill.addEventListener('click', () => sendReaction(entry.id, emoji));
+      row.appendChild(pill);
+    }
+  }
+
+  function applyReaction(id, from, emoji) {
+    const entry = messageRegistry.get(id);
+    if (!entry) return;
+    if (!entry.reactions.has(emoji)) entry.reactions.set(emoji, new Set());
+    const set = entry.reactions.get(emoji);
+    if (set.has(from)) set.delete(from); else set.add(from);
+    renderReactions(entry);
+  }
+
+  function sendReaction(id, emoji) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'reaction', id, emoji }));
+  }
+
+  function closeFloatingPanels() {
+    document.querySelectorAll('.mini-picker, .msg-menu').forEach(el => el.remove());
+  }
+
+  // Позиционирует плавающую панель рядом с кнопкой-триггером, прикрепляя её
+  // к <body> (а не к строке сообщения) и вычисляя fixed-координаты — так
+  // панель никогда не окажется визуально "под" шапкой чата или обрезанной
+  // прокруткой списка сообщений.
+  function positionFloatingPanel(panel, triggerEl, preferAbove) {
+    document.body.appendChild(panel);
+    const btnRect = triggerEl.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const margin = 6;
+
+    let top = preferAbove ? btnRect.top - panelRect.height - margin : btnRect.bottom + margin;
+    if (top < margin) top = btnRect.bottom + margin; // не влезает сверху — показываем снизу
+    if (top + panelRect.height > window.innerHeight - margin) {
+      top = Math.max(margin, window.innerHeight - panelRect.height - margin);
+    }
+
+    let left = btnRect.right - panelRect.width;
+    if (left < margin) left = margin;
+    if (left + panelRect.width > window.innerWidth - margin) {
+      left = window.innerWidth - panelRect.width - margin;
+    }
+
+    panel.style.top = `${top}px`;
+    panel.style.left = `${left}px`;
+  }
+
+  function openReactionPicker(entry, triggerEl) {
+    closeFloatingPanels();
+    const picker = document.createElement('div');
+    picker.className = 'mini-picker';
+    QUICK_REACTIONS.forEach(e => {
+      const span = document.createElement('span');
+      span.textContent = e;
+      span.addEventListener('click', () => { sendReaction(entry.id, e); picker.remove(); });
+      picker.appendChild(span);
+    });
+    positionFloatingPanel(picker, triggerEl, true);
+    setTimeout(() => document.addEventListener('click', function onDoc(ev) {
+      if (!picker.contains(ev.target)) { picker.remove(); document.removeEventListener('click', onDoc); }
+    }), 0);
+  }
+
+  function openMsgMenu(entry, triggerEl) {
+    closeFloatingPanels();
+    const menu = document.createElement('div');
+    menu.className = 'msg-menu';
+    if (entry.kind === 'text' && !entry.deleted) {
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '✏️ Изменить';
+      editBtn.addEventListener('click', () => { startEdit(entry); menu.remove(); });
+      menu.appendChild(editBtn);
+    }
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger';
+    delBtn.textContent = '🗑 Удалить';
+    delBtn.addEventListener('click', () => {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'delete', id: entry.id }));
+      menu.remove();
+    });
+    menu.appendChild(delBtn);
+    positionFloatingPanel(menu, triggerEl, false);
+    setTimeout(() => document.addEventListener('click', function onDoc(ev) {
+      if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', onDoc); }
+    }), 0);
+  }
+
+  function startEdit(entry) {
+    const bubble = entry.bubble;
+    const original = entry.textEl.textContent;
+    bubble.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'edit-input-row';
+    const input = document.createElement('input');
+    input.value = original;
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    wrap.appendChild(input); wrap.appendChild(okBtn);
+    bubble.appendChild(wrap);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    function commit() {
+      const newText = input.value.trim();
+      if (newText && newText !== original && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'edit', id: entry.id, text: newText }));
+      } else { renderTextBubble(entry, original, entry.edited); }
+    }
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') renderTextBubble(entry, original, entry.edited); });
+    okBtn.addEventListener('click', commit);
+  }
+
+  function renderTextBubble(entry, text, edited) {
+    const bubble = entry.bubble;
+    bubble.innerHTML = '';
+    if (!entry.isMe && entry.showName) {
+      const nameEl = document.createElement('span');
+      nameEl.className = 'sender-name';
+      nameEl.textContent = entry.sender;
+      bubble.appendChild(nameEl);
+    }
+    const textEl = document.createElement('span');
+    textEl.className = 'msg-text';
+    textEl.textContent = text;
+    bubble.appendChild(textEl);
+    if (edited) {
+      const tag = document.createElement('span');
+      tag.className = 'edited-tag';
+      tag.textContent = '(ред.)';
+      bubble.appendChild(tag);
+    }
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.innerHTML = entry.time + (entry.isMe ? checkSvg() : '');
+    bubble.appendChild(meta);
+    entry.textEl = textEl;
+    renderReactions(entry);
+  }
+
+  function buildActionButtons(entry) {
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    const reactBtn = document.createElement('button');
+    reactBtn.className = 'msg-action-btn';
+    reactBtn.title = 'Реакция';
+    reactBtn.textContent = '🙂';
+    reactBtn.addEventListener('click', (e) => { e.stopPropagation(); openReactionPicker(entry, reactBtn); });
+    actions.appendChild(reactBtn);
+    if (entry.isMe) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'msg-action-btn';
+      moreBtn.title = 'Ещё';
+      moreBtn.textContent = '⋮';
+      moreBtn.addEventListener('click', (e) => { e.stopPropagation(); openMsgMenu(entry, moreBtn); });
+      actions.appendChild(moreBtn);
+    }
+    return actions;
+  }
+
+  function addTextMessage(id, sender, text, isMe, tsMillis, scope) {
+    scope = scope || 'group';
+    const grouped = (sender === lastSenderByScope.get(scope));
+    lastSenderByScope.set(scope, sender);
+    const row = document.createElement('div');
+    row.className = 'row ' + (isMe ? 'out' : 'in') + (grouped ? ' grouped' : '');
+    row.dataset.id = id;
+    row.dataset.scope = scope;
+    if (scope !== currentScope) row.style.display = 'none';
+    const wrap = document.createElement('div');
+    wrap.className = 'bubble-wrap';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    const timeStr = tsMillis
+      ? new Date(tsMillis).getHours().toString().padStart(2,'0') + ':' + new Date(tsMillis).getMinutes().toString().padStart(2,'0')
+      : timeNow();
+    const entry = {
+      id, kind: 'text', row, bubble, textEl: null, sender, isMe, scope,
+      deleted: false, edited: false, showName: !isMe && !grouped, time: timeStr,
+      reactions: new Map(), reactionsAnchor: bubble
+    };
+    messageRegistry.set(id, entry);
+    renderTextBubble(entry, text, false);
+    wrap.appendChild(bubble);
+    wrap.appendChild(buildActionButtons(entry));
+    row.appendChild(wrap);
+    messagesEl.appendChild(row);
+    if (scope === currentScope) messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (scope === 'group') {
+      groupChatPreview.textContent = (isMe ? 'Вы: ' : '') + text;
+      groupChatTime.textContent = entry.time;
+      if (!isMe) {
+        const c = contacts.get(sender);
+        if (c) c.lastMsgEl = row;
+        updateContactPreview(sender, text);
+      }
+    }
+    return entry;
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' Б';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' КБ';
+    return (n / (1024 * 1024)).toFixed(1) + ' МБ';
+  }
+
+  function addFileMessage(id, sender, filename, mime, dataB64, isMe, tsMillis, scope) {
+    scope = scope || 'group';
+    const grouped = (sender === lastSenderByScope.get(scope));
+    lastSenderByScope.set(scope, sender);
+    const row = document.createElement('div');
+    row.className = 'row ' + (isMe ? 'out' : 'in') + (grouped ? ' grouped' : '');
+    row.dataset.id = id;
+    row.dataset.scope = scope;
+    if (scope !== currentScope) row.style.display = 'none';
+    const wrap = document.createElement('div');
+    wrap.className = 'bubble-wrap';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (!isMe && !grouped) {
+      const nameEl = document.createElement('span');
+      nameEl.className = 'sender-name';
+      nameEl.textContent = sender;
+      bubble.appendChild(nameEl);
+    }
+    const dataUrl = `data:${mime || 'application/octet-stream'};base64,${dataB64}`;
+    const approxBytes = Math.floor(dataB64.length * 0.75);
+    if (mime && mime.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.className = 'bubble-image';
+      img.src = dataUrl;
+      img.alt = filename;
+      img.addEventListener('click', () => { lightboxImg.src = dataUrl; lightbox.classList.add('open'); });
+      bubble.appendChild(img);
+    } else {
+      const fileRow = document.createElement('div');
+      fileRow.className = 'bubble-file';
+      fileRow.innerHTML = `
+        <div class="file-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <div class="file-meta">
+          <div class="file-name"></div>
+          <div class="file-size">${formatBytes(approxBytes)}</div>
+        </div>`;
+      fileRow.querySelector('.file-name').textContent = filename || 'файл';
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = filename || 'file';
+      link.appendChild(fileRow);
+      bubble.appendChild(link);
+    }
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.style.display = 'block';
+    meta.style.marginTop = '4px';
+    meta.innerHTML = timeNow() + (isMe ? checkSvg() : '');
+    bubble.appendChild(meta);
+    const entry = { id, kind: 'file', row, bubble, sender, isMe, scope, deleted: false, reactions: new Map(), reactionsAnchor: bubble };
+    messageRegistry.set(id, entry);
+    wrap.appendChild(bubble);
+    wrap.appendChild(buildActionButtons(entry));
+    row.appendChild(wrap);
+    messagesEl.appendChild(row);
+    if (scope === currentScope) messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    const previewText = '📎 ' + (filename || 'файл');
+    if (scope === 'group') {
+      groupChatPreview.textContent = (isMe ? 'Вы: ' : '') + previewText;
+      groupChatTime.textContent = timeNow();
+      if (!isMe) {
+        const c = contacts.get(sender);
+        if (c) c.lastMsgEl = row;
+        updateContactPreview(sender, previewText);
+      }
+    } else {
+      const otherParty = scope.slice(3);
+      const c = contacts.get(otherParty);
+      if (c) {
+        if (!isMe) c.lastMsgEl = row;
+        updateContactPreview(otherParty, (isMe ? 'Вы: ' : '') + previewText);
+        if (!isMe && currentScope !== scope) bumpDmUnread(otherParty);
+      }
+    }
+  }
+
+  lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+
+  const EMOJI_LIST = ['😀','😂','😅','😊','😍','😘','🥰','😎','🤔','😐','😴','😢','😭','😡','🥳','😱',
+                       '👍','👎','🙏','👏','💪','🔥','✨','🎉','❤️','💔','💯','⭐','☕','🍕','🎂','🎁',
+                       '⚡','🌙','☀️','🌧️','🐱','🐶','🚀','⚽','🎮','📎','✅','❌','❓','❗','💬','👀'];
+
+  let emojiPanelOpen = false;
+  emojiBtn.addEventListener('click', () => {
+    const existing = document.getElementById('emojiPanel');
+    if (emojiPanelOpen && existing) { existing.remove(); emojiPanelOpen = false; return; }
+    const panel = document.createElement('div');
+    panel.className = 'emoji-panel';
+    panel.id = 'emojiPanel';
+    EMOJI_LIST.forEach(e => {
+      const span = document.createElement('span');
+      span.textContent = e;
+      span.addEventListener('click', () => { msgInput.value += e; msgInput.focus(); });
+      panel.appendChild(span);
+    });
+    document.querySelector('.composer').appendChild(panel);
+    emojiPanelOpen = true;
+    setTimeout(() => document.addEventListener('click', function onDoc(ev) {
+      if (!panel.contains(ev.target) && ev.target !== emojiBtn) { panel.remove(); emojiPanelOpen = false; document.removeEventListener('click', onDoc); }
+    }), 0);
+  });
+
+  const MAX_FILE_BYTES = 8 * 1024 * 1024;
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) { addSystemLine(`Файл слишком большой (максимум ${formatBytes(MAX_FILE_BYTES)})`); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      const base64 = result.substring(result.indexOf(',') + 1);
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const payload = { type: 'file', id: genId(), filename: file.name, mime: file.type, data: base64 };
+      if (currentScope !== 'group') payload.to = currentScope.slice(3);
+      ws.send(JSON.stringify(payload));
+    };
+    reader.readAsDataURL(file);
+  });
+
+  let typingSendTimer = null;
+  msgInput.addEventListener('input', () => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (typingSendTimer) return;
+    if (currentScope === 'group') ws.send(JSON.stringify({ type: 'typing' }));
+    else ws.send(JSON.stringify({ type: 'dm_typing', to: currentScope.slice(3) }));
+    typingSendTimer = setTimeout(() => { typingSendTimer = null; }, 2000);
+  });
+
+  const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const callOverlay = document.getElementById('callOverlay');
+  const callAvatar = document.getElementById('callAvatar');
+  const callName = document.getElementById('callName');
+  const callStatus = document.getElementById('callStatus');
+  const callVideoArea = document.getElementById('callVideoArea');
+  const localVideo = document.getElementById('localVideo');
+  const remoteVideo = document.getElementById('remoteVideo');
+  const remoteAudio = document.getElementById('remoteAudio');
+  const callIncomingRow = document.getElementById('callIncomingRow');
+  const callActiveControls = document.getElementById('callActiveControls');
+  const callAcceptBtn = document.getElementById('callAcceptBtn');
+  const callDeclineBtn = document.getElementById('callDeclineBtn');
+  const callMuteBtn = document.getElementById('callMuteBtn');
+  const callCamBtn = document.getElementById('callCamBtn');
+  const callHangupBtn = document.getElementById('callHangupBtn');
+
+  let call = null;
+  let pendingIncoming = null;
+  let ringtoneTimer = null;
+
+  function playRingtone() {
+    stopRingtone();
+    let toggle = true;
+    ringtoneTimer = setInterval(() => { if (toggle) playPing(); toggle = !toggle; }, 700);
+  }
+  function stopRingtone() { clearInterval(ringtoneTimer); ringtoneTimer = null; }
+  function formatCallTimer(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+  function openCallPanel(peerName, isVideo) {
+    callOverlay.classList.add('open');
+    callName.textContent = peerName;
+    callAvatar.textContent = initialsForName(peerName);
+    callAvatar.style.background = colorForName(peerName);
+    callVideoArea.classList.toggle('active', isVideo);
+    callCamBtn.style.display = isVideo ? 'flex' : 'none';
+  }
+  function closeCallPanel() {
+    callOverlay.classList.remove('open');
+    callAvatar.classList.remove('ringing');
+    callIncomingRow.style.display = 'none';
+    callActiveControls.style.display = 'none';
+    callMuteBtn.classList.remove('active-off');
+    callCamBtn.classList.remove('active-off');
+    if (localVideo.srcObject) localVideo.srcObject = null;
+    if (remoteVideo.srcObject) remoteVideo.srcObject = null;
+    if (remoteAudio.srcObject) remoteAudio.srcObject = null;
+  }
+  async function getLocalMedia(video) {
+    return navigator.mediaDevices.getUserMedia({ audio: true, video: video ? { width: 320, height: 240 } : false });
+  }
+  function createPeerConnection(peerName) {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    pc.onicecandidate = (e) => {
+      if (!e.candidate || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'call_ice', to: peerName, candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex }));
+    };
+    pc.ontrack = (e) => {
+      const stream = e.streams[0];
+      if (e.track.kind === 'video') remoteVideo.srcObject = stream; else remoteAudio.srcObject = stream;
+    };
+    pc.onconnectionstatechange = () => {
+      if (!call) return;
+      if (pc.connectionState === 'connected' && call.state !== 'connected') {
+        call.state = 'connected';
+        callAvatar.classList.remove('ringing');
+        callStatus.textContent = '00:00';
+        call.startTime = Date.now();
+        call.timerInterval = setInterval(() => { callStatus.textContent = formatCallTimer(Math.floor((Date.now() - call.startTime) / 1000)); }, 1000);
+      } else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+        if (call && call.peer === peerName) endCall(false);
+      }
+    };
+    return pc;
+  }
+  async function startCall(peerName, isVideo) {
+    if (call) { addSystemLine('Вы уже в звонке'); return; }
+    const c = contacts.get(peerName);
+    if (!c || !c.online) { addSystemLine(`${peerName} сейчас не в сети`); return; }
+    try {
+      const localStream = await getLocalMedia(isVideo);
+      const pc = createPeerConnection(peerName);
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      if (isVideo) localVideo.srcObject = localStream;
+      call = { peer: peerName, isVideo, isCaller: true, pc, localStream, state: 'calling', timerInterval: null, startTime: null, iceQueue: [] };
+      openCallPanel(peerName, isVideo);
+      callAvatar.classList.add('ringing');
+      callStatus.textContent = 'Вызов…';
+      callIncomingRow.style.display = 'none';
+      callActiveControls.style.display = 'flex';
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      ws.send(JSON.stringify({ type: 'call_offer', to: peerName, sdp: offer.sdp, video: isVideo }));
+    } catch (err) {
+      addSystemLine('Не удалось получить доступ к микрофону/камере');
+      call = null;
+      closeCallPanel();
+    }
+  }
+  async function handleIncomingOffer(from, sdp, isVideo) {
+    if (call) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'call_busy', to: from })); return; }
+    pendingIncoming = { from, sdp, video: isVideo };
+    openCallPanel(from, isVideo);
+    callAvatar.classList.add('ringing');
+    callStatus.textContent = isVideo ? 'Входящий видеозвонок…' : 'Входящий звонок…';
+    callIncomingRow.style.display = 'flex';
+    callActiveControls.style.display = 'none';
+    playRingtone();
+  }
+  callAcceptBtn.addEventListener('click', async () => {
+    if (!pendingIncoming) return;
+    const { from, sdp, video } = pendingIncoming;
+    pendingIncoming = null;
+    stopRingtone();
+    callIncomingRow.style.display = 'none';
+    callActiveControls.style.display = 'flex';
+    try {
+      const localStream = await getLocalMedia(video);
+      const pc = createPeerConnection(from);
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      if (video) localVideo.srcObject = localStream;
+      call = { peer: from, isVideo: video, isCaller: false, pc, localStream, state: 'connecting', timerInterval: null, startTime: null, iceQueue: [] };
+      await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+      for (const cnd of call.iceQueue) await pc.addIceCandidate(cnd).catch(() => {});
+      call.iceQueue = [];
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      ws.send(JSON.stringify({ type: 'call_answer', to: from, sdp: answer.sdp, video }));
+      callStatus.textContent = 'Соединение…';
+    } catch (err) {
+      addSystemLine('Не удалось получить доступ к микрофону/камере');
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'call_reject', to: from }));
+      call = null;
+      closeCallPanel();
+    }
+  });
+  callDeclineBtn.addEventListener('click', () => {
+    if (!pendingIncoming) return;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'call_reject', to: pendingIncoming.from }));
+    pendingIncoming = null;
+    stopRingtone();
+    closeCallPanel();
+  });
+  async function handleCallAnswer(from, sdp) {
+    if (!call || call.peer !== from || !call.isCaller) return;
+    callStatus.textContent = 'Соединение…';
+    await call.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }));
+    for (const cnd of call.iceQueue) await call.pc.addIceCandidate(cnd).catch(() => {});
+    call.iceQueue = [];
+  }
+  async function handleCallIce(from, candidate, sdpMid, sdpMLineIndex) {
+    if (!call || call.peer !== from) return;
+    const cnd = new RTCIceCandidate({ candidate, sdpMid, sdpMLineIndex: sdpMLineIndex === null ? undefined : sdpMLineIndex });
+    if (call.pc.remoteDescription && call.pc.remoteDescription.type) await call.pc.addIceCandidate(cnd).catch(() => {});
+    else call.iceQueue.push(cnd);
+  }
+  function handleCallEnd(from) { if (call && call.peer === from) endCall(true); }
+  function handleCallReject(from) { if (call && call.peer === from) { callStatus.textContent = 'Звонок отклонён'; setTimeout(() => endCall(true), 900); } }
+  function handleCallBusy(from) { if (call && call.peer === from) { callStatus.textContent = 'Собеседник занят'; setTimeout(() => endCall(true), 900); } }
+  function handleCallFailed(to) { if (call && call.peer === to) { callStatus.textContent = 'Пользователь не в сети'; setTimeout(() => endCall(true), 900); } }
+  function endCall(remoteInitiated) {
+    stopRingtone();
+    if (pendingIncoming) pendingIncoming = null;
+    if (call) {
+      if (!remoteInitiated && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'call_end', to: call.peer }));
+      clearInterval(call.timerInterval);
+      if (call.localStream) call.localStream.getTracks().forEach(t => t.stop());
+      if (call.pc) call.pc.close();
+      call = null;
+    }
+    closeCallPanel();
+  }
+  callHangupBtn.addEventListener('click', () => endCall(false));
+  callMuteBtn.addEventListener('click', () => {
+    if (!call) return;
+    const track = call.localStream.getAudioTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    callMuteBtn.classList.toggle('active-off', !track.enabled);
+  });
+  callCamBtn.addEventListener('click', () => {
+    if (!call) return;
+    const track = call.localStream.getVideoTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    callCamBtn.classList.toggle('active-off', !track.enabled);
+  });
+  function checkCallPeerOffline(name) { if (call && call.peer === name) { callStatus.textContent = 'Собеседник отключился'; setTimeout(() => endCall(true), 900); } }
+
+  function connect() {
+    const url = document.getElementById('serverInput').value.trim();
+    const name = document.getElementById('nameInput').value.trim();
+    loginError.textContent = '';
+    if (!url) { loginError.textContent = 'Укажи адрес сервера'; return; }
+    if (!name) { loginError.textContent = 'Введи имя'; return; }
+    myName = name;
+    headerAvatar.textContent = initialsForName(name);
+    let socket;
+    try { socket = new WebSocket(url); } catch (e) { loginError.textContent = 'Некорректный адрес сервера'; return; }
+    ws = socket;
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'join', name }));
+      loginEl.style.display = 'none';
+      msgInput.disabled = false;
+      sendBtn.disabled = false;
+      msgInput.focus();
+      onlineCount = 1;
+      updateOnlineLabel();
+      addSystemLine('Сегодня');
+    };
+    ws.onmessage = (event) => {
+      let obj;
+      try { obj = JSON.parse(event.data); } catch (e) { return; }
+      switch (obj.type) {
+        case 'presence_list': {
+          const names = (obj.names || '').split(',').map(s => s.trim()).filter(Boolean);
+          names.forEach(n => { upsertContact(n, true); onlineCount++; });
+          updateOnlineLabel();
+          break;
+        }
+        case 'system': addSystemLine(obj.text); break;
+        case 'presence':
+          upsertContact(obj.name, obj.online);
+          onlineCount = obj.online ? onlineCount + 1 : Math.max(1, onlineCount - 1);
+          updateOnlineLabel();
+          if (currentScope === 'dm:' + obj.name) refreshHeaderStatusForScope();
+          if (!obj.online) checkCallPeerOffline(obj.name);
+          break;
+        case 'typing': if (obj.from !== myName) showTyping(obj.from); break;
+        case 'dm_typing':
+          if (obj.from !== myName && currentScope === 'dm:' + obj.from) {
+            headerStatus.classList.add('typing');
+            headerStatus.textContent = `${obj.from} печатает…`;
+            clearTimeout(dmTypingTimer);
+            dmTypingTimer = setTimeout(refreshHeaderStatusForScope, 3000);
+          }
+          break;
+        case 'message': {
+          const isMe = obj.from === myName;
+          if (!isMe) upsertContact(obj.from, true);
+          addTextMessage(obj.id, obj.from, obj.text, isMe, obj.ts, 'group');
+          if (!isMe) { playPing(); bumpUnread(); }
+          break;
+        }
+        case 'dm': {
+          const isMe = obj.from === myName;
+          const otherParty = isMe ? obj.to : obj.from;
+          const scope = 'dm:' + otherParty;
+          if (!isMe) upsertContact(obj.from, true);
+          addTextMessage(obj.id, obj.from, obj.text, isMe, obj.ts, scope);
+          const c = contacts.get(otherParty);
+          if (c) updateContactPreview(otherParty, (isMe ? 'Вы: ' : '') + obj.text);
+          if (!isMe) { playPing(); bumpUnread(); if (currentScope !== scope) bumpDmUnread(otherParty); }
+          break;
+        }
+        case 'dm_failed': addSystemLine(`${obj.to} сейчас не в сети — сообщение не доставлено`, 'dm:' + obj.to); break;
+        case 'file': {
+          const isMe = obj.from === myName;
+          const scope = obj.to ? ('dm:' + (isMe ? obj.to : obj.from)) : 'group';
+          if (!isMe) upsertContact(obj.from, true);
+          addFileMessage(obj.id, obj.from, obj.filename, obj.mime, obj.data, isMe, obj.ts, scope);
+          if (!isMe) { playPing(); bumpUnread(); }
+          break;
+        }
+        case 'edit': {
+          const entry = messageRegistry.get(obj.id);
+          if (entry && entry.kind === 'text') { entry.edited = true; renderTextBubble(entry, obj.text, true); }
+          break;
+        }
+        case 'delete': {
+          const entry = messageRegistry.get(obj.id);
+          if (entry && !entry.deleted) {
+            entry.deleted = true;
+            entry.bubble.classList.add('deleted');
+            entry.bubble.innerHTML = '<span class="msg-text">Сообщение удалено</span>';
+            const wrap = entry.row.querySelector('.msg-actions');
+            if (wrap) wrap.remove();
+          }
+          break;
+        }
+        case 'reaction': applyReaction(obj.id, obj.from, obj.emoji); break;
+        case 'call_offer': handleIncomingOffer(obj.from, obj.sdp, !!obj.video); break;
+        case 'call_answer': handleCallAnswer(obj.from, obj.sdp); break;
+        case 'call_ice': handleCallIce(obj.from, obj.candidate, obj.sdpMid, obj.sdpMLineIndex); break;
+        case 'call_end': handleCallEnd(obj.from); break;
+        case 'call_reject': handleCallReject(obj.from); break;
+        case 'call_busy': handleCallBusy(obj.from); break;
+        case 'call_failed': handleCallFailed(obj.to); break;
+      }
+    };
+    ws.onclose = () => {
+      headerStatus.classList.remove('online', 'typing');
+      headerStatus.textContent = 'не в сети';
+      msgInput.disabled = true;
+      sendBtn.disabled = true;
+    };
+    ws.onerror = () => { loginError.textContent = 'Не удалось подключиться к серверу'; };
+  }
+
+  function sendMessage() {
+    const text = msgInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    if (currentScope === 'group') ws.send(JSON.stringify({ type: 'message', id: genId(), text }));
+    else ws.send(JSON.stringify({ type: 'dm', id: genId(), to: currentScope.slice(3), text }));
+    msgInput.value = '';
+  }
+
+  document.getElementById('connectBtn').addEventListener('click', connect);
+  document.getElementById('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+  document.getElementById('serverInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+  sendBtn.addEventListener('click', sendMessage);
+  msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+  contactSearch.addEventListener('input', () => {
+    const q = contactSearch.value.trim().toLowerCase();
+    for (const [name, c] of contacts) c.el.style.display = name.toLowerCase().includes(q) ? '' : 'none';
+  });
+</script>
+
+</body>
+</html>
